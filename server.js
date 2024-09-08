@@ -41,8 +41,8 @@ wss.on("connection", async function connection(ws, req) {
 
   ws.on("close", function close() {
     if (conncetedDevices.has(ws)) {
-      console.log(`device - ${id} disconnected`);
       const id = conncetedDevices.get(ws);
+      console.log(`device - ${id} disconnected`);
       updateDeviceStatus(id, false, wss);
     }
   });
