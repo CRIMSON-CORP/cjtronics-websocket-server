@@ -20,6 +20,7 @@ wss.on("connection", async function connection(ws, req) {
     if (!conncetedDevices.has(ws)) {
       console.log(`device - ${id} connected`);
       conncetedDevices.set(ws, id);
+
       try {
         updateDeviceStatus(id, true, wss);
       } catch (error) {}
