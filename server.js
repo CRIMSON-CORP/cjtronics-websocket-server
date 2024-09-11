@@ -28,6 +28,7 @@ wss.on("connection", async function connection(ws, req) {
   }
 
   ws.on("message", async function incoming(message) {
+    console.log(message)
     const data = JSON.parse(message);
     if (conncetedDevices.has(ws)) {
       const deviceId = conncetedDevices.get(ws);
