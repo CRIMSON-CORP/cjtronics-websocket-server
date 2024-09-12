@@ -35,7 +35,7 @@ wss.on("connection", async function connection(ws, req) {
       if (data.event === "device-log") {
         await axios.put(
           `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-log/${deviceId}`,
-          data
+          data.logs
         );
       }
     }
