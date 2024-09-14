@@ -39,7 +39,7 @@ wss.on("connection", async function connection(ws, req) {
             data.logs
           );
         } catch (error) {
-          console.log({ config: error.config, data: error.response.data });
+          console.log(error);
         }
       }
       return;
