@@ -4,7 +4,7 @@ import WebSocket, { WebSocketServer } from "ws";
 const wss = new WebSocketServer({ port: process.env.PORT || 8080 });
 
 /**
- * @type {Map<string, WebSocket[]>} clients - Map of Clients, keyed by an identifier.
+ * @type {Map<WebSocket, string>} clients - Map of Clients, keyed by an identifier.
  */
 const conncetedDevices = new Map();
 
@@ -32,11 +32,35 @@ wss.on("connection", async function connection(ws, req) {
     if (conncetedDevices.has(ws)) {
       const deviceId = conncetedDevices.get(ws);
       if (data.event === "device-log") {
-        await axios.put(
-          `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-log/${deviceId}`,
-          data
-        );
+        try {
+          await axios.put(
+            `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-log/${deviceId}`,
+            data
+          );
+        } catch (error) {
+          console.log(error);
+        }
       }
+      return;
+    }
+
+    if (data.event === "send-to-device" && data.device_id) {
+      let deviceSocket = null;
+
+      conncetedDevices.forEach((id, key) => {
+        console.log(id);
+
+        if (id === data.device_id) {
+          deviceSocket = key;
+        }
+      });
+
+      if (deviceSocket) {
+        if (deviceSocket.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(data));
+        }
+      }
+      return;
     }
   });
 
