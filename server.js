@@ -38,7 +38,9 @@ wss.on("connection", async function connection(ws, req) {
             `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-log/${deviceId}`,
             data.logs
           );
+          console.log(`Sent log from ${deviceId} to api!`);
         } catch (error) {
+          console.log(`Failed to send log from ${deviceId} to api!`);
           console.log(error);
         }
       }
@@ -57,6 +59,7 @@ wss.on("connection", async function connection(ws, req) {
       if (deviceSocket) {
         if (deviceSocket.readyState === WebSocket.OPEN) {
           deviceSocket.send(JSON.stringify(data));
+          console.log(`Sent campaings to device ${id}`);
         }
       }
       return;
