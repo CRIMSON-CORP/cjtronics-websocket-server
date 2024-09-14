@@ -28,7 +28,7 @@ wss.on("connection", async function connection(ws, req) {
   }
 
   ws.on("message", async function incoming(message) {
-    console.log(JSON.parse(message));
+    // console.log(JSON.parse(message));
     const data = JSON.parse(message);
     if (conncetedDevices.has(ws)) {
       const deviceId = conncetedDevices.get(ws);
@@ -49,16 +49,14 @@ wss.on("connection", async function connection(ws, req) {
       let deviceSocket = null;
 
       conncetedDevices.forEach((id, key) => {
-        console.log(id);
-
-        if (id === data.device_id) {
+        if (id === data.deviceId) {
           deviceSocket = key;
         }
       });
 
       if (deviceSocket) {
         if (deviceSocket.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify(data));
+          deviceSocket.send(JSON.stringify(data));
         }
       }
       return;
