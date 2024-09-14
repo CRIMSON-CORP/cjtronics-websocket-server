@@ -34,6 +34,7 @@ wss.on("connection", async function connection(ws, req) {
       const deviceId = conncetedDevices.get(ws);
       if (data.event === "device-log") {
         try {
+          console.log(`Sending log from ${deviceId} to api!`);
           await axios.put(
             `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-log/${deviceId}`,
             data.logs
@@ -48,16 +49,20 @@ wss.on("connection", async function connection(ws, req) {
     }
 
     if (data.event === "send-to-device" && data.deviceId) {
+      console.log(`received campaings going to ${data.deviceId}`);
+
       let deviceSocket = null;
 
       conncetedDevices.forEach((id, key) => {
         if (id === data.deviceId) {
+          console.log(`found device! -  ${data.deviceId}`);
           deviceSocket = key;
         }
       });
 
       if (deviceSocket) {
         if (deviceSocket.readyState === WebSocket.OPEN) {
+          console.log(`sending campaings to device - ${data.deviceId}`);
           deviceSocket.send(JSON.stringify(data));
           console.log(`Sent campaings to device ${id}`);
         }
