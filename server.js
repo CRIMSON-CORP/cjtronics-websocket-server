@@ -64,8 +64,10 @@ wss.on("connection", async function connection(ws, req) {
         if (deviceSocket.readyState === WebSocket.OPEN) {
           console.log(`sending campaings to device - ${data.deviceId}`);
           deviceSocket.send(JSON.stringify(data));
-          console.log(`Sent campaings to device ${id}`);
+          console.log(`Sent campaings to device ${data.deviceId}`);
         }
+      } else {
+        console.log("device not found or not online");
       }
       return;
     }
@@ -74,6 +76,7 @@ wss.on("connection", async function connection(ws, req) {
   ws.on("close", function close() {
     if (conncetedDevices.has(ws)) {
       const id = conncetedDevices.get(ws);
+      conncetedDevices.delete(ws);
       console.log(`device - ${id} disconnected`);
       updateDeviceStatus(id, false, wss);
     }
