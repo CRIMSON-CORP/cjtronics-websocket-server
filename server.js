@@ -45,7 +45,7 @@ wss.on("connection", async function connection(ws, req) {
       return;
     }
 
-    if (data.event === "send-to-device" && data.device_id) {
+    if (data.event === "send-to-device" && data.deviceId) {
       let deviceSocket = null;
 
       conncetedDevices.forEach((id, key) => {
