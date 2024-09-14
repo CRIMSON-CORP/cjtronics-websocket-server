@@ -36,7 +36,7 @@ wss.on("connection", async function connection(ws, req) {
         try {
           await axios.put(
             `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-log/${deviceId}`,
-            data
+            data.logs
           );
         } catch (error) {
           console.log({ config: error.config, data: error.response.data });
