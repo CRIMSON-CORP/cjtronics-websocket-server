@@ -6,7 +6,7 @@ const wss = new WebSocketServer({ port: process.env.PORT || 8080 });
 /**
  * @type {Map<WebSocket, string>} clients - Map of Clients, keyed by an identifier.
  */
-const conncetedDevices = new Map();
+const connectedDevices = new Map();
 
 const BACKEND_BASE_URL = "https://cjtronics.tushcode.com";
 const BACKEND_VERSION = "v1";
@@ -17,9 +17,9 @@ wss.on("connection", async function connection(ws, req) {
   const id = queryParams.get("id");
 
   if (type === "device" && id) {
-    if (!conncetedDevices.has(ws)) {
+    if (!connectedDevices.has(ws)) {
       console.log(`device - ${id} connected`);
-      conncetedDevices.set(ws, id);
+      connectedDevices.set(ws, id);
 
       try {
         updateDeviceStatus(id, true, wss);
@@ -28,10 +28,10 @@ wss.on("connection", async function connection(ws, req) {
   }
 
   ws.on("message", async function incoming(message) {
-    // console.log(JSON.parse(message));
     const data = JSON.parse(message);
-    if (conncetedDevices.has(ws)) {
-      const deviceId = conncetedDevices.get(ws);
+
+    if (connectedDevices.has(ws)) {
+      const deviceId = connectedDevices.get(ws);
       if (data.event === "device-log") {
         try {
           console.log(`Sending log from ${deviceId} to api!`);
@@ -45,42 +45,64 @@ wss.on("connection", async function connection(ws, req) {
           console.log(error);
         }
       }
-      return;
-    }
 
-    if (data.event === "send-to-device" && data.deviceId) {
-      console.log(`received campaings going to ${data.deviceId}`);
+      if (data.event === "send-to-device" && data.deviceId) {
+        console.log(`received campaigns going to ${data.deviceId}`);
 
-      let deviceSocket = null;
+        let deviceSocket = null;
 
-      conncetedDevices.forEach((id, key) => {
-        if (id === data.deviceId) {
-          console.log(`found device! -  ${data.deviceId}`);
-          deviceSocket = key;
+        connectedDevices.forEach((id, key) => {
+          if (id === data.deviceId) {
+            console.log(`found device! -  ${data.deviceId}`);
+            deviceSocket = key;
+          }
+        });
+
+        if (deviceSocket) {
+          if (deviceSocket.readyState === WebSocket.OPEN) {
+            console.log(`sending campaigns to device - ${data.deviceId}`);
+            deviceSocket.send(JSON.stringify(data));
+            console.log(`Sent campaigns to device ${data.deviceId}`);
+          }
+        } else {
+          console.log("device not found or not online");
         }
-      });
-
-      if (deviceSocket) {
-        if (deviceSocket.readyState === WebSocket.OPEN) {
-          console.log(`sending campaings to device - ${data.deviceId}`);
-          deviceSocket.send(JSON.stringify(data));
-          console.log(`Sent campaings to device ${data.deviceId}`);
-        }
-      } else {
-        console.log("device not found or not online");
+        return;
       }
+
+      if (data.event === "pong") {
+        clearTimeout(heartbeatTimeout);
+        setTimeout(heartbeat, 10 * 1000);
+      }
+
       return;
     }
   });
 
   ws.on("close", function close() {
-    if (conncetedDevices.has(ws)) {
-      const id = conncetedDevices.get(ws);
-      conncetedDevices.delete(ws);
+    if (connectedDevices.has(ws)) {
+      const id = connectedDevices.get(ws);
+      connectedDevices.delete(ws);
       console.log(`device - ${id} disconnected`);
       updateDeviceStatus(id, false, wss);
     }
   });
+
+  let heartbeatTimeout = null;
+
+  const heartbeat = () => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ event: "ping" }));
+      heartbeatTimeout = setTimeout(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          console.log("terminate connection");
+          ws.terminate();
+        }
+      }, 20 * 1000);
+    }
+  };
+
+  heartbeat();
 });
 
 console.log("WebSocket server running on ws://localhost:8080");
