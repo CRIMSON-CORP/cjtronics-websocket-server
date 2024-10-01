@@ -91,14 +91,14 @@ wss.on("connection", async function connection(ws, req) {
   let heartbeatTimeout = null;
 
   const heartbeat = () => {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (connectedDevices.has(ws) && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ event: "ping" }));
       heartbeatTimeout = setTimeout(() => {
         if (ws.readyState === WebSocket.OPEN) {
           console.log("terminate connection");
           ws.terminate();
         }
-      }, 20 * 1000);
+      }, 10 * 1000);
     }
   };
 
