@@ -46,35 +46,33 @@ wss.on("connection", async function connection(ws, req) {
         }
       }
 
-      if (data.event === "send-to-device" && data.deviceId) {
-        console.log(`received campaigns going to ${data.deviceId}`);
-
-        let deviceSocket = null;
-
-        connectedDevices.forEach((id, key) => {
-          if (id === data.deviceId) {
-            console.log(`found device! -  ${data.deviceId}`);
-            deviceSocket = key;
-          }
-        });
-
-        if (deviceSocket) {
-          if (deviceSocket.readyState === WebSocket.OPEN) {
-            console.log(`sending campaigns to device - ${data.deviceId}`);
-            deviceSocket.send(JSON.stringify(data));
-            console.log(`Sent campaigns to device ${data.deviceId}`);
-          }
-        } else {
-          console.log("device not found or not online");
-        }
-        return;
-      }
-
       if (data.event === "pong") {
         clearTimeout(heartbeatTimeout);
         setTimeout(heartbeat, 10 * 1000);
       }
+    }
 
+    if (data.event === "send-to-device" && data.deviceId) {
+      console.log(`received campaigns going to ${data.deviceId}`);
+
+      let deviceSocket = null;
+
+      connectedDevices.forEach((id, key) => {
+        if (id === data.deviceId) {
+          console.log(`found device! -  ${data.deviceId}`);
+          deviceSocket = key;
+        }
+      });
+
+      if (deviceSocket) {
+        if (deviceSocket.readyState === WebSocket.OPEN) {
+          console.log(`sending campaigns to device - ${data.deviceId}`);
+          deviceSocket.send(JSON.stringify(data));
+          console.log(`Sent campaigns to device ${data.deviceId}`);
+        }
+      } else {
+        console.log("device not found or not online");
+      }
       return;
     }
   });
