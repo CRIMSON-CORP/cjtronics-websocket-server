@@ -8,8 +8,8 @@ const wss = new WebSocketServer({ port: process.env.PORT || 8080 });
  */
 const connectedDevices = new Map();
 
-const BACKEND_BASE_URL = "https://cjtronics.tushcode.com";
-const BACKEND_VERSION = "v1";
+const { BACKEND_BASE_URL, BACKEND_VERSION } = process.env;
+console.log(BACKEND_BASE_URL, BACKEND_VERSION);
 
 wss.on("connection", async function connection(ws, req) {
   const queryParams = new URLSearchParams(req.url.replace("/?", ""));
