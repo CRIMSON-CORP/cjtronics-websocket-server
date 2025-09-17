@@ -1,8 +1,8 @@
 import axios from "axios";
 import WebSocket, { WebSocketServer } from "ws";
 
-const wss = new WebSocketServer({ port: process.env.PORT || 8080 });
-
+const port = process.env.PORT || 8088;
+const wss = new WebSocketServer({ port, host: "0.0.0.0" });
 /**
  * @type {Map<WebSocket, string>} clients - Map of Clients, keyed by an identifier.
  */
@@ -26,10 +26,12 @@ wss.on("connection", async function connection(ws, req) {
     }
   }
 
-  ws.send(JSON.stringify({
-    type: "backend-url",
-    data: `${BACKEND_BASE_URL}/${BACKEND_VERSION}`,
-  }));
+  // ws.send(
+  //   JSON.stringify({
+  //     type: "backend-url",
+  //     data: `${BACKEND_BASE_URL}/${BACKEND_VERSION}`,
+  //   })
+  // );
 
   ws.on("message", async function incoming(message) {
     const data = JSON.parse(message);
