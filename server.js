@@ -26,12 +26,12 @@ wss.on("connection", async function connection(ws, req) {
     }
   }
 
-  // ws.send(
-  //   JSON.stringify({
-  //     type: "backend-url",
-  //     data: `${BACKEND_BASE_URL}/${BACKEND_VERSION}`,
-  //   })
-  // );
+  ws.send(
+    JSON.stringify({
+      type: "backend-url",
+      data: `${BACKEND_BASE_URL}/${BACKEND_VERSION}`,
+    })
+  );
 
   ws.on("message", async function incoming(message) {
     const data = JSON.parse(message);
