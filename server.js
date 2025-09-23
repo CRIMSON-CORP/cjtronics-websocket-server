@@ -46,6 +46,17 @@ wss.on("connection", async function connection(ws, req) {
             data.logs
           );
           console.log(`Sent log from ${deviceId} to api!`);
+          wss.clients.forEach((client) => {
+            if (client.readyState !== WebSocket.OPEN) return;
+            if (client === ws) return;
+            if (connectedDevices.has(client)) return;
+            client.send(
+              JSON.stringify({
+                event: "device-log",
+                log: data.data,
+              })
+            );
+          });
         } catch (error) {
           console.log(`Failed to send log from ${deviceId} to api!`);
           console.log(error);
