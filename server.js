@@ -53,7 +53,7 @@ wss.on("connection", async function connection(ws, req) {
             client.send(
               JSON.stringify({
                 event: "device-log",
-                log: data.data,
+                log: data.logs,
               })
             );
           });
