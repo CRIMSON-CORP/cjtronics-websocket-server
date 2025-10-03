@@ -41,7 +41,7 @@ wss.on("connection", async function connection(ws, req) {
       if (data.event === "device-log") {
         try {
           console.log(`Sending log from ${deviceId} to api!`);
-          await axios.put(
+          const { data } = await axios.put(
             `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-log/${deviceId}`,
             data.logs
           );
@@ -53,7 +53,7 @@ wss.on("connection", async function connection(ws, req) {
             client.send(
               JSON.stringify({
                 event: "device-log",
-                log: data.logs,
+                log: { ...data.logs, ...data.data },
               })
             );
           });
