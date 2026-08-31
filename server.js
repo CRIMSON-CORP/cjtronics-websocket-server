@@ -72,27 +72,13 @@ wss.on("connection", async function connection(ws, req) {
 
     if (data.event === "send-to-device" && data.deviceId) {
       console.log(`received campaigns going to ${data.deviceId}`);
+      forwardToDevice(data.deviceId, data, "campaigns");
+    }
 
-      let deviceSocketList = [];
-
-      connectedDevices.forEach((id, key) => {
-        if (id === data.deviceId) {
-          console.log(`found device! -  ${data.deviceId}`);
-          deviceSocketList.push(key);
-        }
-      });
-
-      if (deviceSocketList.length === 0) {
-        console.log("not device found or devices arent online");
-      } else {
-        deviceSocketList.forEach((deviceSocket) => {
-          if (deviceSocket.readyState === WebSocket.OPEN) {
-            console.log(`sending campaigns to device - ${data.deviceId}`);
-            deviceSocket.send(JSON.stringify(data));
-            console.log(`Sent campaigns to device ${data.deviceId}`);
-          }
-        });
-      }
+    // Live brightness/volume from the dashboard. Fire and forget: the device
+    // applies it, nothing is acked back.
+    if (data.event === "device-settings" && data.deviceId) {
+      forwardToDevice(data.deviceId, data, "settings");
     }
   });
 
@@ -123,6 +109,30 @@ wss.on("connection", async function connection(ws, req) {
 });
 
 console.log(`WebSocket server running on ws://localhost:${port}`);
+
+/**
+ * Relay a payload to every open socket registered under this deviceId.
+ * A device can hold more than one entry if it reconnected before the old
+ * socket's close fired.
+ */
+function forwardToDevice(deviceId, payload, label) {
+  const deviceSockets = [];
+
+  connectedDevices.forEach((id, socket) => {
+    if (id === deviceId) deviceSockets.push(socket);
+  });
+
+  if (deviceSockets.length === 0) {
+    console.log(`no device found for ${deviceId}, or it isn't online`);
+    return;
+  }
+
+  deviceSockets.forEach((deviceSocket) => {
+    if (deviceSocket.readyState !== WebSocket.OPEN) return;
+    deviceSocket.send(JSON.stringify(payload));
+    console.log(`Sent ${label} to device ${deviceId}`);
+  });
+}
 
 async function updateDeviceStatus(deviceId, status, wss) {
   try {
