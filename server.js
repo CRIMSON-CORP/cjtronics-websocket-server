@@ -47,21 +47,28 @@ wss.on("connection", async function connection(ws, req) {
             data.logs
           );
           console.log(`Sent log from ${deviceId} to api!`);
-          wss.clients.forEach((client) => {
-            if (client.readyState !== WebSocket.OPEN) return;
-            if (client === ws) return;
-            if (connectedDevices.has(client)) return;
-            client.send(
-              JSON.stringify({
-                event: "device-log",
-                log: { ...data.logs, ...response.data.data },
-              })
-            );
-          });
+          broadcastToObservers(
+            {
+              event: "device-log",
+              log: { ...data.logs, ...response.data.data },
+            },
+            ws
+          );
         } catch (error) {
           console.log(`Failed to send log from ${deviceId} to api!`);
           console.log(error);
         }
+      }
+
+      // What this device is showing right now, mirrored into the dashboard's
+      // preview. Deliberately not persisted and not routed through the backend:
+      // the log path already covers history, and gating this on the backend
+      // being up would blank the preview for unrelated reasons.
+      if (data.event === "now-playing") {
+        broadcastToObservers(
+          { event: "now-playing", deviceId, data: data.data },
+          ws
+        );
       }
 
       if (data.event === "pong") {
@@ -109,6 +116,19 @@ wss.on("connection", async function connection(ws, req) {
 });
 
 console.log(`WebSocket server running on ws://localhost:${port}`);
+
+/**
+ * Send to every watching client - dashboards, not devices - skipping the sender.
+ */
+function broadcastToObservers(payload, sender) {
+  const message = JSON.stringify(payload);
+  wss.clients.forEach((client) => {
+    if (client.readyState !== WebSocket.OPEN) return;
+    if (client === sender) return;
+    if (connectedDevices.has(client)) return;
+    client.send(message);
+  });
+}
 
 /**
  * Relay a payload to every open socket registered under this deviceId.
