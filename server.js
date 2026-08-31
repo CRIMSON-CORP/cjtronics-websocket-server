@@ -26,9 +26,10 @@ wss.on("connection", async function connection(ws, req) {
     }
   }
 
+  // Key must stay "event": every client dispatches on data.event.
   ws.send(
     JSON.stringify({
-      type: "backend-url",
+      event: "backend-url",
       data: `${BACKEND_BASE_URL}`,
     })
   );
