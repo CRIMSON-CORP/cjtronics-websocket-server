@@ -8,7 +8,8 @@ const wss = new WebSocketServer({ port });
  */
 const connectedDevices = new Map();
 
-const { BACKEND_BASE_URL, BACKEND_VERSION } = process.env;
+const { BACKEND_BASE_URL, BACKEND_VERSION, INTERNAL_KEY } = process.env;
+const internalKey = INTERNAL_KEY || "";
 
 wss.on("connection", async function connection(ws, req) {
   const queryParams = new URLSearchParams(req.url.replace("/?", ""));
@@ -44,7 +45,8 @@ wss.on("connection", async function connection(ws, req) {
           console.log(`Sending log from ${deviceId} to api!`);
           const response = await axios.put(
             `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-log/${deviceId}`,
-            data.logs
+            data.logs,
+            { headers: { INTERNAL_SERVICE_KEY: internalKey } },
           );
           console.log(`Sent log from ${deviceId} to api!`);
           broadcastToObservers(
@@ -52,7 +54,7 @@ wss.on("connection", async function connection(ws, req) {
               event: "device-log",
               log: { ...data.logs, ...response.data.data },
             },
-            ws
+            ws,
           );
         } catch (error) {
           console.log(`Failed to send log from ${deviceId} to api!`);
@@ -190,7 +192,8 @@ async function updateDeviceStatus(deviceId, status, wss) {
       `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-status/${deviceId}`,
       {
         status,
-      }
+      },
+      { headers: { INTERNAL_SERVICE_KEY: internalKey } },
     );
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
