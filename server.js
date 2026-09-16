@@ -32,7 +32,7 @@ wss.on("connection", async function connection(ws, req) {
     JSON.stringify({
       event: "backend-url",
       data: `${BACKEND_BASE_URL}`,
-    })
+    }),
   );
 
   ws.on("message", async function incoming(message) {
@@ -67,35 +67,39 @@ wss.on("connection", async function connection(ws, req) {
       // the log path already covers history, and gating this on the backend
       // being up would blank the preview for unrelated reasons.
       if (data.event === "now-playing") {
-        broadcastToObservers(
-          { event: "now-playing", deviceId, data: data.data },
-          ws
-        );
+        broadcastToObservers({ event: "now-playing", deviceId, data: data.data }, ws);
       }
 
       if (data.event === "device-screenshot") {
-        broadcastToObservers(
-          { event: "device-screenshot", deviceId, data: data.data },
-          ws
-        );
+        broadcastToObservers({ event: "device-screenshot", deviceId, data: data.data }, ws);
 
         // Upload to backend using internal key
-        const internalKey = process.env.INTERNAL_KEY || "";
         const payload = {
           capturedAt: data.capturedAt,
           screenshot: data.data,
-          campaignRefs: data.campaignRefs || []
+          campaignRefs: data.campaignRefs || [],
         };
-        
-        axios.post(`${BACKEND_BASE_URL}/${BACKEND_VERSION}/screen/screenshot/upload/${deviceId}`, payload, {
-          headers: { 'X-Internal-Key': internalKey }
-        }).then((res) => {
-          console.log(`Successfully uploaded screenshot for ${deviceId}. Reference: ${res.data?.data?.reference}`);
-        }).catch(err => {
-          console.error(`Failed to upload screenshot for ${deviceId}:`, err.response?.data?.message || err.message);
-        });
+
+        axios
+          .post(
+            `${BACKEND_BASE_URL}/${BACKEND_VERSION}/screen/screenshot/upload/${deviceId}`,
+            payload,
+            {
+              headers: { INTERNAL_SERVICE_KEY: internalKey },
+            },
+          )
+          .then((res) => {
+            console.log(
+              `Successfully uploaded screenshot for ${deviceId}. Reference: ${res.data?.data?.reference}`,
+            );
+          })
+          .catch((err) => {
+            console.error(
+              `Failed to upload screenshot for ${deviceId}:`,
+              err.response?.data?.message || err.message,
+            );
+          });
       }
-  
 
       if (data.event === "pong") {
         clearTimeout(heartbeatTimeout);
@@ -118,7 +122,6 @@ wss.on("connection", async function connection(ws, req) {
       console.log(`received screenshot request going to ${data.deviceId}`);
       forwardToDevice(data.deviceId, data, "screenshot");
     }
-  
   });
 
   ws.on("close", function close() {
@@ -201,7 +204,7 @@ async function updateDeviceStatus(deviceId, status, wss) {
           JSON.stringify({
             event: "device-connection",
             screens: data.data,
-          })
+          }),
         );
       }
     });
