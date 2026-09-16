@@ -71,6 +71,30 @@ wss.on("connection", async function connection(ws, req) {
         );
       }
 
+      if (data.event === "device-screenshot") {
+        broadcastToObservers(
+          { event: "device-screenshot", deviceId, data: data.data },
+          ws
+        );
+
+        // Upload to backend using internal key
+        const internalKey = process.env.INTERNAL_KEY || "";
+        const payload = {
+          capturedAt: data.capturedAt,
+          screenshot: data.data,
+          campaignRefs: data.campaignRefs || []
+        };
+        
+        axios.post(`${BACKEND_BASE_URL}/${BACKEND_VERSION}/screen/screenshot/upload/${deviceId}`, payload, {
+          headers: { 'X-Internal-Key': internalKey }
+        }).then((res) => {
+          console.log(`Successfully uploaded screenshot for ${deviceId}. Reference: ${res.data?.data?.reference}`);
+        }).catch(err => {
+          console.error(`Failed to upload screenshot for ${deviceId}:`, err.response?.data?.message || err.message);
+        });
+      }
+  
+
       if (data.event === "pong") {
         clearTimeout(heartbeatTimeout);
         setTimeout(heartbeat, 10 * 1000);
@@ -87,6 +111,12 @@ wss.on("connection", async function connection(ws, req) {
     if (data.event === "device-settings" && data.deviceId) {
       forwardToDevice(data.deviceId, data, "settings");
     }
+
+    if (data.event === "take-screenshot" && data.deviceId) {
+      console.log(`received screenshot request going to ${data.deviceId}`);
+      forwardToDevice(data.deviceId, data, "screenshot");
+    }
+  
   });
 
   ws.on("close", function close() {
