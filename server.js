@@ -46,7 +46,7 @@ wss.on("connection", async function connection(ws, req) {
           const response = await axios.put(
             `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-log/${deviceId}`,
             data.logs,
-            { headers: { INTERNAL_SERVICE_KEY: internalKey } },
+            { headers: { "X-Internal-Key": internalKey } },
           );
           console.log(`Sent log from ${deviceId} to api!`);
           broadcastToObservers(
@@ -81,13 +81,9 @@ wss.on("connection", async function connection(ws, req) {
         };
 
         axios
-          .post(
-            `${BACKEND_BASE_URL}/${BACKEND_VERSION}/screen/screenshot/upload/${deviceId}`,
-            payload,
-            {
-              headers: { INTERNAL_SERVICE_KEY: internalKey },
-            },
-          )
+          .post(`${BACKEND_BASE_URL}/${BACKEND_VERSION}/internal/screenshot/${deviceId}`, payload, {
+            headers: { "X-Internal-Key": internalKey },
+          })
           .then((res) => {
             console.log(
               `Successfully uploaded screenshot for ${deviceId}. Reference: ${res.data?.data?.reference}`,
@@ -196,7 +192,7 @@ async function updateDeviceStatus(deviceId, status, wss) {
       {
         status,
       },
-      { headers: { INTERNAL_SERVICE_KEY: internalKey } },
+      { headers: { "X-Internal-Key": internalKey } },
     );
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
