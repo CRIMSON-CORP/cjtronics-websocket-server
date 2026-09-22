@@ -46,7 +46,7 @@ wss.on("connection", async function connection(ws, req) {
           const response = await axios.put(
             `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-log/${deviceId}`,
             data.logs,
-            { headers: { "X-Internal-Key": internalKey } },
+            { headers: { "X-Internal-Key": internalKey, "User-Agent": data.userAgent } },
           );
           console.log(`Sent log from ${deviceId} to api!`);
           broadcastToObservers(
