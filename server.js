@@ -1,5 +1,6 @@
 import axios from "axios";
 import WebSocket, { WebSocketServer } from "ws";
+import sharp from "sharp";
 
 const port = process.env.PORT || 8088;
 const wss = new WebSocketServer({ port });
@@ -44,7 +45,9 @@ wss.on("connection", async function connection(ws, req) {
       heartbeatTimeoutId = setTimeout(() => {
         if (isAwaitingPong && ws.readyState === WebSocket.OPEN) {
           const deviceId = socketToDevice.get(ws) || "unknown";
-          console.warn(`[HEARTBEAT] Ping timeout for device ${deviceId}. Terminating dead connection.`);
+          console.warn(
+            `[HEARTBEAT] Ping timeout for device ${deviceId}. Terminating dead connection.`,
+          );
           ws.terminate();
         }
       }, PONG_TIMEOUT_MS);
@@ -66,7 +69,9 @@ wss.on("connection", async function connection(ws, req) {
     // Prune existing stale connections for this deviceId to eliminate ghost sockets
     const existingSockets = deviceToSockets.get(id);
     if (existingSockets && existingSockets.size > 0) {
-      console.log(`device - ${id} has ${existingSockets.size} existing socket(s). Pruning stale connections.`);
+      console.log(
+        `device - ${id} has ${existingSockets.size} existing socket(s). Pruning stale connections.`,
+      );
       existingSockets.forEach((staleSocket) => {
         socketToDevice.delete(staleSocket);
         existingSockets.delete(staleSocket);
@@ -129,7 +134,10 @@ wss.on("connection", async function connection(ws, req) {
             ws,
           );
         } catch (error) {
-          console.error(`Failed to send log from ${deviceId} to api:`, error.response?.data?.message || error.message);
+          console.error(
+            `Failed to send log from ${deviceId} to api:`,
+            error.response?.data?.message || error.message,
+          );
         }
       }
 
@@ -138,18 +146,38 @@ wss.on("connection", async function connection(ws, req) {
       }
 
       if (data.event === "device-screenshot") {
-        broadcastToObservers({ event: "device-screenshot", deviceId, data: data.data }, ws);
+        const { data: base64Data, capturedAt, metadata, deviceId } = data;
 
-        const payload = {
-          capturedAt: data.capturedAt,
-          screenshot: data.data,
-          campaignRefs: data.campaignRefs || [],
-        };
+        const watermarkedBase64 = await watermarkScreenshot(base64Data, {
+          screenName: metadata?.screenName,
+          location: metadata?.location,
+          deviceId: metadata?.deviceId || deviceId,
+          capturedAt,
+        });
+
+        broadcastToObservers({ event: "device-screenshot", deviceId, data: watermarkedBase64 }, ws);
+
+        const blob = new Blob([Buffer.from(watermarkedBase64, "base64")], {
+          type: "image/png",
+        });
+
+        const formData = new FormData();
+        formData.append(
+          "file",
+          blob,
+          `screenshot_${metadata?.deviceId || deviceId}_${Date.now()}.png`,
+        );
+        formData.append("campaignRefs", JSON.stringify(data.campaignRefs || []));
+        formData.append("capturedAt", capturedAt);
 
         axios
-          .post(`${BACKEND_BASE_URL}/${BACKEND_VERSION}/internal/screenshot/${deviceId}`, payload, {
-            headers: { "X-Internal-Key": internalKey },
-          })
+          .post(
+            `${BACKEND_BASE_URL}/${BACKEND_VERSION}/internal/screenshot/${deviceId}`,
+            formData,
+            {
+              headers: { "X-Internal-Key": internalKey },
+            },
+          )
           .then((res) => {
             console.log(
               `Successfully uploaded screenshot for ${deviceId}. Reference: ${res.data?.data?.reference}`,
@@ -195,7 +223,9 @@ wss.on("connection", async function connection(ws, req) {
           console.log(`device - ${id} disconnected (0 active sockets remaining)`);
           updateDeviceStatus(id, false, wss);
         } else {
-          console.log(`device - ${id} socket closed, but ${sockets.size} active socket(s) remain. Preserving ONLINE status.`);
+          console.log(
+            `device - ${id} socket closed, but ${sockets.size} active socket(s) remain. Preserving ONLINE status.`,
+          );
         }
       }
     }
@@ -243,7 +273,9 @@ function forwardToDevice(deviceId, payload, label) {
 
 async function updateDeviceStatus(deviceId, status, wss) {
   try {
-    console.log(`[STATUS] Updating device status in backend: ${deviceId} -> ${status ? "ONLINE" : "OFFLINE"}`);
+    console.log(
+      `[STATUS] Updating device status in backend: ${deviceId} -> ${status ? "ONLINE" : "OFFLINE"}`,
+    );
     const { data } = await axios.put(
       `${BACKEND_BASE_URL}/${BACKEND_VERSION}/public-advert/device-status/${deviceId}`,
       {
@@ -251,7 +283,9 @@ async function updateDeviceStatus(deviceId, status, wss) {
       },
       { headers: { "X-Internal-Key": internalKey } },
     );
-    console.log(`[STATUS] Backend acknowledged status for ${deviceId}. Broadcasting to observers...`);
+    console.log(
+      `[STATUS] Backend acknowledged status for ${deviceId}. Broadcasting to observers...`,
+    );
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(
@@ -268,4 +302,64 @@ async function updateDeviceStatus(deviceId, status, wss) {
       error.response?.data?.message || error.message,
     );
   }
+}
+
+async function watermarkScreenshot(base64Image, { screenName, location, deviceId, capturedAt }) {
+  // Strip any data URI prefix if present
+  const rawBase64 = base64Image.replace(/^data:image\/\w+;base64,/, "");
+  const imageBuffer = Buffer.from(rawBase64, "base64");
+
+  const dateStr = capturedAt ? capturedAt.split("T")[0] : new Date().toISOString().split("T")[0];
+  const timeStr = capturedAt
+    ? capturedAt.split("T")[1]?.slice(0, 8)
+    : new Date().toTimeString().slice(0, 8);
+
+  const sansFont =
+    "'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, 'Liberation Sans', 'DejaVu Sans', sans-serif";
+  const svgWatermark = `
+    <svg width="680" height="310" xmlns="http://www.w3.org/2000/svg" font-family="${sansFont}">
+      <style>
+        text {
+          font-family: ${sansFont};
+        }
+      </style>
+      <rect width="100%" height="100%" rx="20" fill="rgba(10, 15, 29, 0.55)"/>
+      
+      <!-- Status Badge -->
+      <circle cx="34" cy="38" r="8" fill="#10b981" />
+      <text x="54" y="44" fill="#94a3b8" font-size="18" font-weight="700" letter-spacing="2">PROOF OF PLAY AUDIT</text>
+      
+      <!-- Divider -->
+      <line x1="28" y1="64" x2="652" y2="64" stroke="rgba(255, 255, 255, 0.18)" stroke-width="2"/>
+      
+      <!-- Rows -->
+      <text x="28" y="106" fill="#94a3b8" font-size="22" font-weight="500">Screen:</text>
+      <text x="652" y="106" fill="#ffffff" font-size="22" font-weight="700" text-anchor="end">${screenName || "Screen"}</text>
+      
+      <text x="28" y="152" fill="#94a3b8" font-size="22" font-weight="500">Date:</text>
+      <text x="652" y="152" fill="#ffffff" font-size="22" font-weight="700" text-anchor="end">${dateStr}</text>
+      
+      <text x="28" y="198" fill="#94a3b8" font-size="22" font-weight="500">Time:</text>
+      <text x="652" y="198" fill="#ffffff" font-size="22" font-weight="700" text-anchor="end">${timeStr}</text>
+      
+      <text x="28" y="244" fill="#94a3b8" font-size="22" font-weight="500">Location:</text>
+      <text x="652" y="244" fill="#ffffff" font-size="22" font-weight="700" text-anchor="end">${location || "Unknown"}</text>
+      
+      <text x="28" y="290" fill="#94a3b8" font-size="22" font-weight="500">Device ID:</text>
+      <text x="652" y="290" fill="#ffffff" font-size="22" font-weight="700" text-anchor="end">${deviceId || "N/A"}</text>
+    </svg>
+  `;
+
+  const watermarkedBuffer = await sharp(imageBuffer)
+    .composite([
+      {
+        input: Buffer.from(svgWatermark),
+        top: 24,
+        left: 24,
+      },
+    ])
+    .png()
+    .toBuffer();
+
+  return watermarkedBuffer.toString("base64");
 }
