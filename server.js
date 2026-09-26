@@ -314,8 +314,7 @@ async function watermarkScreenshot(base64Image, { screenName, location, deviceId
     ? capturedAt.split("T")[1]?.slice(0, 8)
     : new Date().toTimeString().slice(0, 8);
 
-  const sansFont =
-    "'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, 'Liberation Sans', 'DejaVu Sans', sans-serif";
+  const sansFont = "'DejaVu Sans', 'Liberation Sans', Roboto, Arial, sans-serif";
   const svgWatermark = `
     <svg width="680" height="310" xmlns="http://www.w3.org/2000/svg" font-family="${sansFont}">
       <style>
